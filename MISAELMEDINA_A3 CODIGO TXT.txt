@@ -1,0 +1,132 @@
+#include <windows.h>
+#include <sqlext.h>
+#include <sql.h>
+#include <iostream>
+#include <iomanip>
+#include <locale.h>
+
+using namespace std;
+
+int main()
+{
+    setlocale(LC_ALL, "es_ES.UTF-8");
+
+    SQLHENV hEnv;
+    SQLHDBC hDbc;
+    SQLRETURN ret;
+
+    // Asignar un gestor de entorno
+    ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv);
+    ret = SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
+
+    // Asignar un gestor de conexión
+    ret = SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc);
+
+    // Conectarse a la base de datos
+    ret = SQLConnect(hDbc, (SQLWCHAR*)L"sqlserver", SQL_NTS, (SQLWCHAR*)L"Username", SQL_NTS, (SQLWCHAR*)L"Password", SQL_NTS);
+
+    if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+        cout << "Conectado a la base de datos exitosamente.\n" << endl;
+
+        wcout << L"+-----------+--------------------------+-----------+------------+------------------------------+-----------------+-----------------------------------------------+-----------+-------------------+ " << endl;
+        wcout << L"| #Empleado |    Nombre Completo       |Nacimiento |     RFC    |     Centro de Trabajo        |     Puesto      |          Descripcion del Puesto               | Directivo |  Numero de Centro |" << endl;
+        wcout << L"+-----------+--------------------------+-----------+------------+------------------------------+-----------------+-----------------------------------------------+-----------+-------------------+" << endl;
+
+        SQLHSTMT hStmt;
+        ret = SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt);
+
+        // Select a la base de datos
+        ret = SQLExecDirect(hStmt, (SQLWCHAR*)L"SELECT * FROM EMPLEADOS_1", SQL_NTS);
+
+        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+            int Num_Empleado;
+            SQLWCHAR Nombre[50];
+            SQLWCHAR Apellido_Paterno[50];
+            SQLWCHAR Apellido_Materno[50];
+            SQL_DATE_STRUCT Fecha_Nacimiento;
+            SQLWCHAR RFC[50];
+            SQLWCHAR Centro_Trabajo[50];
+            SQLWCHAR Puesto[50];
+            SQLWCHAR Descripcion_Puesto[50];
+            SQLWCHAR Directivo[50];
+            SQLWCHAR Num_Centro[50];
+
+            while (SQLFetch(hStmt) == SQL_SUCCESS) {
+                SQLGetData(hStmt, 1, SQL_C_LONG, &Num_Empleado, 0, NULL);
+                SQLGetData(hStmt, 2, SQL_C_WCHAR, Nombre, sizeof(Nombre), NULL);
+                SQLGetData(hStmt, 3, SQL_C_WCHAR, Apellido_Paterno, sizeof(Apellido_Paterno), NULL);
+                SQLGetData(hStmt, 4, SQL_C_WCHAR, Apellido_Materno, sizeof(Apellido_Materno), NULL);
+                SQLGetData(hStmt, 5, SQL_C_TYPE_DATE, &Fecha_Nacimiento, 0, NULL);
+                SQLGetData(hStmt, 6, SQL_C_WCHAR, RFC, sizeof(RFC), NULL);
+                SQLGetData(hStmt, 7, SQL_C_WCHAR, Centro_Trabajo, sizeof(Centro_Trabajo), NULL);
+                SQLGetData(hStmt, 8, SQL_C_WCHAR, Puesto, sizeof(Puesto), NULL);
+                SQLGetData(hStmt, 9, SQL_C_WCHAR, Descripcion_Puesto, sizeof(Descripcion_Puesto), NULL);
+                SQLGetData(hStmt, 10, SQL_C_WCHAR, Directivo, sizeof(Directivo), NULL);
+                SQLGetData(hStmt, 11, SQL_C_WCHAR, Num_Centro, sizeof(Num_Centro), NULL);
+
+                wstring Apellidos = wstring(Apellido_Materno) + L" " + wstring(Apellido_Paterno);
+                wstring Nombre_Completo = wstring(Nombre) + L" " + wstring(Apellidos);
+                wstring dir = wstring(Directivo);
+                wstring Respuesta;
+
+                if (dir == L"1") {
+                    Respuesta = L"Si";
+                }
+                else
+                {
+                    Respuesta = L"No";
+                }
+
+
+                wcout << L"| " << setw(10) << left << Num_Empleado
+                    << L"| " << setw(25) << left << Nombre_Completo
+                    << L"| " << setw(2) << Fecha_Nacimiento.day << L"-" << setw(2) << Fecha_Nacimiento.month << L"-" << setw(2) << Fecha_Nacimiento.year
+                    << L"| " << setw(11) << left << RFC
+                    << L"| " << setw(29) << Centro_Trabajo
+                    << L"| " << setw(16) << Puesto
+                    << L"| " << setw(46) << Descripcion_Puesto
+                    << L"| " << setw(10) << Respuesta
+                    << L"| " << setw(6) <<Num_Centro << L"            |" << endl;
+            }
+
+              
+            
+            wcout << L"+-----------+--------------------------+-----------+------------+------------------------------+-----------------+-----------------------------------------------+-----------+-------------------+\n" << endl;
+        }
+        wcout << L"+---------+------+-------------------+---------+ " << endl;
+        wcout << L"|id_puesto|Puesto||Descripcion_Puesto|Directivo|"<< endl;
+        wcout << L"+---------+------+-------------------+---------+ " << endl;
+
+        wcout << L"+---------+------+-------------------+---------+\n" << endl;
+
+
+        wcout << L"+----------+--------------+------+ " << endl;
+        wcout << L"|Num_Centro|Centro_Trabajo|Ciudad|" << endl;
+        wcout << L"+----------+--------------+------+ " << endl;
+
+        wcout << L"+----------+--------------+------+\n" << endl;
+
+
+        wcout << L"+------------+---------+-------------+-----------------+ " << endl;
+        wcout << L"|id_directivo|Directivo|Superv_Centro|Apoyo_Combustible|" << endl;
+        wcout << L"+------------+---------+-------------+-----------------+ " << endl;
+
+        wcout << L"+------------+---------+-------------+-----------------+\n" << endl;
+
+
+
+
+        // Liberar el manejador de conexión
+        SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    }
+    else {
+        cout << "Fallo la conexion a la base de datos" << endl;
+    }
+
+    // Desconectar y liberar manejadores
+    SQLDisconnect(hDbc);
+    SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
+    SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
+
+    return 0;
+}
